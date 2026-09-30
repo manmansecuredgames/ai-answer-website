@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111;
+      padding: 20px;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 700px;
+    }
+    h1 {
+      margin: 0 0 28px;
+      font-size: 42px;
+      font-weight: 400;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .prompt {
+      border: 1px solid #e5e5e5;
+      background: #f7f7f7;
+      padding: 14px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: left;
+      color: #222;
+      transition: 0.2s ease;
+    }
+    .prompt:hover {
+      background: #f0f0f0;
+      border-color: #d9d9d9;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    input {
+      flex: 1;
+      border: 1px solid #d9d9d9;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 16px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #111;
+    }
+    button {
+      border: none;
+      background: #111;
+      color: white;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #222;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px solid #ededed;
+      background: #fafafa;
+      border-radius: 10px;
+      line-height: 1.6;
+      display: none;
+      white-space: pre-wrap;
+    }
+    .result.show {
+      display: block;
+    }
+    .loading {
+      margin-top: 18px;
+      color: #555;
+      font-size: 14px;
+      display: none;
+    }
+    .loading.show {
+      display: block;
+    }
+    @media (max-width: 560px) {
+      .prompt-grid {
+        grid-template-columns: 1fr;
+      }
+      .input-row {
+        flex-direction: column;
+      }
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>2</h1>
+
+    <div class="prompt-grid">
+      <button class="prompt" type="button" data-text="What is the capital of France?">What is the capital of France?</button>
+      <button class="prompt" type="button" data-text="What causes the seasons?">What causes the seasons?</button>
+      <button class="prompt" type="button" data-text="How does gravity work?">How does gravity work?</button>
+      <button class="prompt" type="button" data-text="What is a black hole?">What is a black hole?</button>
+    </div>
+
+    <div class="input-row">
+      <input id="question" type="text" placeholder="Type a question..." />
+      <button id="send" type="button">Send</button>
+    </div>
+
+    <div id="loading" class="loading">Loading...</div>
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const input = document.getElementById('question');
+    const result = document.getElementById('result');
+    const loading = document.getElementById('loading');
+
+    document.querySelectorAll('.prompt').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.text;
+        input.focus();
+      });
+    });
+
+    document.getElementById('send').addEventListener('click', askQuestion);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') askQuestion();
+    });
+
+    async function askQuestion() {
+      const question = input.value.trim();
+      if (!question) return;
+
+      loading.classList.add('show');
+      result.classList.remove('show');
+      result.textContent = '';
+
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Request failed.');
+        }
+
+        result.textContent = data.answer;
+        result.classList.add('show');
+      } catch (error) {
+        result.textContent = error.message;
+        result.classList.add('show');
+      } finally {
+        loading.classList.remove('show');
+      }
+    }
+  </script>
+</body>
+</html>
