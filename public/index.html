@@ -6,26 +6,28 @@
   <title>2</title>
   <style>
     * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
       min-height: 100vh;
+      background: #fff;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    body {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #fff;
-      font-family: Arial, Helvetica, sans-serif;
-      color: #111;
       padding: 20px;
     }
     .wrap {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
     }
     h1 {
       margin: 0 0 28px;
-      font-size: 42px;
-      font-weight: 400;
       text-align: center;
+      font-weight: 400;
+      font-size: 42px;
       letter-spacing: 1px;
     }
     .prompt-grid {
@@ -35,21 +37,21 @@
       margin-bottom: 18px;
     }
     .prompt {
+      background: #f6f6f6;
       border: 1px solid #e5e5e5;
-      background: #f7f7f7;
-      padding: 14px 16px;
       border-radius: 10px;
+      padding: 14px 16px;
+      text-align: left;
+      color: #111;
       cursor: pointer;
       font-size: 14px;
-      text-align: left;
-      color: #222;
-      transition: 0.2s ease;
+      transition: .2s ease;
     }
     .prompt:hover {
       background: #f0f0f0;
-      border-color: #d9d9d9;
+      border-color: #d7d7d7;
     }
-    .input-row {
+    .row {
       display: flex;
       gap: 10px;
     }
@@ -76,33 +78,33 @@
     button:hover {
       background: #222;
     }
-    .result {
-      margin-top: 20px;
+    .status {
+      margin-top: 18px;
+      font-size: 14px;
+      color: #555;
+      display: none;
+    }
+    .status.show {
+      display: block;
+    }
+    .answer {
+      margin-top: 18px;
       padding: 16px;
-      border: 1px solid #ededed;
+      border: 1px solid #ececec;
       background: #fafafa;
       border-radius: 10px;
       line-height: 1.6;
-      display: none;
       white-space: pre-wrap;
-    }
-    .result.show {
-      display: block;
-    }
-    .loading {
-      margin-top: 18px;
-      color: #555;
-      font-size: 14px;
       display: none;
     }
-    .loading.show {
+    .answer.show {
       display: block;
     }
     @media (max-width: 560px) {
       .prompt-grid {
         grid-template-columns: 1fr;
       }
-      .input-row {
+      .row {
         flex-direction: column;
       }
       button {
@@ -116,25 +118,71 @@
     <h1>2</h1>
 
     <div class="prompt-grid">
-      <button class="prompt" type="button" data-text="What is the capital of France?">What is the capital of France?</button>
-      <button class="prompt" type="button" data-text="What causes the seasons?">What causes the seasons?</button>
-      <button class="prompt" type="button" data-text="How does gravity work?">How does gravity work?</button>
-      <button class="prompt" type="button" data-text="What is a black hole?">What is a black hole?</button>
+      <button class="prompt" data-text="What is the capital of France?">What is the capital of France?</button>
+      <button class="prompt" data-text="How does photosynthesis work?">How does photosynthesis work?</button>
+      <button class="prompt" data-text="What causes the seasons?">What causes the seasons?</button>
+      <button class="prompt" data-text="What is a black hole?">What is a black hole?</button>
     </div>
 
-    <div class="input-row">
-      <input id="question" type="text" placeholder="Type a question..." />
-      <button id="send" type="button">Send</button>
+    <div class="row">
+      <input id="question" type="text" placeholder="Ask anything..." />
+      <button id="send">Send</button>
     </div>
 
-    <div id="loading" class="loading">Loading...</div>
-    <div id="result" class="result"></div>
+    <div id="status" class="status">Loading model...</div>
+    <div id="answer" class="answer"></div>
   </div>
 
-  <script>
+  <script type="module">
+    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0';
+
     const input = document.getElementById('question');
-    const result = document.getElementById('result');
-    const loading = document.getElementById('loading');
+    const sendBtn = document.getElementById('send');
+    const answerBox = document.getElementById('answer');
+    const statusBox = document.getElementById('status');
+
+    let generator = null;
+
+    async function ensureModel() {
+      if (generator) return generator;
+      statusBox.textContent = 'Loading model...';
+      statusBox.classList.add('show');
+      generator = await pipeline('text-generation', 'Xenova/distilgpt2');
+      statusBox.textContent = 'Ready.';
+      return generator;
+    }
+
+    async function askQuestion() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      answerBox.textContent = '';
+      answerBox.classList.remove('show');
+      statusBox.textContent = 'Thinking...';
+      statusBox.classList.add('show');
+
+      try {
+        const model = await ensureModel();
+        const result = await model(text, {
+          max_new_tokens: 60,
+          temperature: 0.8,
+          do_sample: true,
+          top_p: 0.95
+        });
+
+        const output = result?.[0]?.generated_text || 'No answer generated.';
+        const cleaned = output.replace(text, '').trim();
+
+        answerBox.textContent = cleaned || 'No answer generated.';
+        answerBox.classList.add('show');
+      } catch (error) {
+        answerBox.textContent = 'Model failed to load or generate an answer. Try again in a moment.';
+        answerBox.classList.add('show');
+        console.error(error);
+      } finally {
+        statusBox.textContent = 'Ready.';
+      }
+    }
 
     document.querySelectorAll('.prompt').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -143,41 +191,13 @@
       });
     });
 
-    document.getElementById('send').addEventListener('click', askQuestion);
+    sendBtn.addEventListener('click', askQuestion);
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') askQuestion();
     });
 
-    async function askQuestion() {
-      const question = input.value.trim();
-      if (!question) return;
-
-      loading.classList.add('show');
-      result.classList.remove('show');
-      result.textContent = '';
-
-      try {
-        const response = await fetch('/api/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Request failed.');
-        }
-
-        result.textContent = data.answer;
-        result.classList.add('show');
-      } catch (error) {
-        result.textContent = error.message;
-        result.classList.add('show');
-      } finally {
-        loading.classList.remove('show');
-      }
-    }
+    statusBox.textContent = 'Ready to answer.';
+    statusBox.classList.add('show');
   </script>
 </body>
 </html>
